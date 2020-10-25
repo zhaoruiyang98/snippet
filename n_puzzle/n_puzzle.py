@@ -106,32 +106,37 @@ class NPuzzle:
         state = list(map(str, state))
         return ''.join(state)
 
-    def getNeighborStates(self):
-        stateArray = self.getArray()
-        rank = self.rank
-        zeroIndex = np.unravel_index(np.argmin(stateArray), stateArray.shape)
+    def getNeighborStates(self, state=None, rank=None):
+        if state is None:
+            state = self.state
+        if rank is None:
+            rank = self.rank
 
-        neighborIndexes = []
-        for i, j in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            newi = zeroIndex[0]+i
-            newj = zeroIndex[1]+j
-            if (0 <= newi < rank) and (0 <= newj < rank):
-                neighborIndexes.append((newi, newj))
-
+        zeroIndex = state.index('0')
         neighborStates = []
-        for x in neighborIndexes:
-            tempArray = stateArray.copy()
-            temp = tempArray[x]
-            tempArray[x] = tempArray[zeroIndex]
-            tempArray[zeroIndex] = temp
-            neighborStates.append(self.arrayToState(tempArray))
+        upIndex = zeroIndex - rank
+        downIndex = zeroIndex + rank
+        leftIndex = zeroIndex - 1
+        rightIndex = zeroIndex + 1
+        if upIndex >= 0:
+            neighborStates.append(state[:upIndex] + state[zeroIndex] +
+                                  state[upIndex+1:zeroIndex] + state[upIndex] + state[zeroIndex+1:])
+        if downIndex < rank * rank:
+            neighborStates.append(state[:zeroIndex] + state[downIndex] +
+                                  state[zeroIndex+1:downIndex] + state[zeroIndex] + state[downIndex+1:])
+        if zeroIndex % rank != 0:
+            neighborStates.append(state[:leftIndex] + state[zeroIndex] +
+                                  state[leftIndex+1:zeroIndex] + state[leftIndex] + state[zeroIndex+1:])
+        if rightIndex % rank != 0:
+            neighborStates.append(state[:zeroIndex] + state[rightIndex] +
+                                  state[zeroIndex+1:rightIndex] + state[zeroIndex] + state[rightIndex+1:])
 
         return neighborStates
 
     def getNeighbors(self):
         result = []
         for x in self.getNeighborStates():
-            result.append(NPuzzle(x))
+            result.append(NPuzzle(x, isCheck=False))
         return result
 
     def printNeighbors(self):
@@ -157,7 +162,7 @@ class NPuzzle:
             if current is goalState:
                 break
 
-            for next in NPuzzle(current, isCheck=False).getNeighborStates():
+            for next in self.getNeighborStates(state=current, rank=self.rank):
                 newCost = costSoFar[current] + 1
                 if (next not in costSoFar) or (newCost < costSoFar[next]):
                     costSoFar[next] = newCost
