@@ -54,23 +54,24 @@ class NPuzzle:
 
     """
 
-    def __init__(self, state):
-        self._checkIndex(state)
+    def __init__(self, state, isCheck=True):
+        self._checkIndex(state, isCheck)
 
-    def _checkIndex(self, state):
-        if type(state) is not str:
-            raise TypeError("The type of state should be str")
+    def _checkIndex(self, state, isCheck):
         rank = int(np.sqrt(len(state)))
-        if len(state) != rank**2:
-            raise ValueError(
-                "The length of input state should be a perfect square")
-        for i in range(len(state)):
-            if str(i) not in state:
+        if isCheck:
+            if type(state) is not str:
+                raise TypeError("The type of state should be str")
+            if len(state) != rank**2:
                 raise ValueError(
-                    "Illegal state: each element should be in the range of 0 to %d" % (len(state)-1))
-            if state.count(str(i)) != 1:
-                raise ValueError(
-                    "Illegal state: each element should appear only once")
+                    "The length of input state should be a perfect square")
+            for i in range(len(state)):
+                if str(i) not in state:
+                    raise ValueError(
+                        "Illegal state: each element should be in the range of 0 to %d" % (len(state)-1))
+                if state.count(str(i)) != 1:
+                    raise ValueError(
+                        "Illegal state: each element should appear only once")
         self.rank = rank
         self.state = state
 
@@ -153,28 +154,29 @@ class NPuzzle:
         while not frontier.empty():
             current = frontier.get()
 
-            if current.state is goalState:
+            if current is goalState:
                 break
 
-            for next in NPuzzle(current).getNeighborStates():
+            for next in NPuzzle(current, isCheck=False).getNeighborStates():
                 newCost = costSoFar[current] + 1
                 if (next not in costSoFar) or (newCost < costSoFar[next]):
                     costSoFar[next] = newCost
                     priority = newCost + self.heuristicCost(next, goalState)
                     frontier.put(next, priority)
                     cameFrom[next] = current
-        
+
         if goalState not in cameFrom:
-            raise Exception('Initial state cannot be transformed into goalState')
-        
+            raise Exception(
+                'Initial state cannot be transformed into goalState')
+
         chains = []
         node = goalState
         while node is not None:
-            chains.append(NPuzzle(node))
+            chains.append(NPuzzle(node, isCheck=False))
             node = cameFrom[node]
         chains.reverse()
-        self.path = {'goalState':goalState,'chains':chains,'steps':len(chains)}
-
+        self.path = {'goalState': goalState,
+                     'chains': chains, 'steps': len(chains)}
 
     @staticmethod
     def getManHattanDistance(state1, state2):
@@ -182,10 +184,12 @@ class NPuzzle:
 
     @staticmethod
     def heuristicCost(state1, state2):
-        pass
+        return 0
 
 
 if __name__ == '__main__':
     testmod()
-    a = NPuzzle('462301578')
-    dic = {a:a}
+    a = NPuzzle('236148750')
+    a.solve('123456780')
+    for x in a.path['chains']:
+        x.printState()
