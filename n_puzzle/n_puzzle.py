@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
 from doctest import testmod
+from queue import PriorityQueue, Queue
 
 # class Cell:
 #     def __init__(self, index, n):
@@ -80,8 +81,8 @@ class NPuzzle:
         return self.state
 
     def getArray(self):
-        result =  np.array(list(map(int,list(self.state))))
-        result = result.reshape((self.rank,self.rank))
+        result = np.array(list(map(int, list(self.state))))
+        result = result.reshape((self.rank, self.rank))
         return result
 
     def printState(self):
@@ -96,12 +97,12 @@ class NPuzzle:
             print('')
             print('*   '*rank+'*')
             print('*'*linewidth)
-    
+
     def arrayToState(self, array):
         rank = self.rank
         state = array.reshape((rank**2))
         state = list(state)
-        state = list(map(str,state))
+        state = list(map(str, state))
         return ''.join(state)
 
     def getNeighborStates(self):
@@ -110,12 +111,12 @@ class NPuzzle:
         zeroIndex = np.unravel_index(np.argmin(stateArray), stateArray.shape)
 
         neighborIndexes = []
-        for i,j in [(-1,0),(1,0),(0,-1),(0,1)]:
+        for i, j in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             newi = zeroIndex[0]+i
             newj = zeroIndex[1]+j
             if (0 <= newi < rank) and (0 <= newj < rank):
-                neighborIndexes.append((newi,newj))
-        
+                neighborIndexes.append((newi, newj))
+
         neighborStates = []
         for x in neighborIndexes:
             tempArray = stateArray.copy()
@@ -138,9 +139,53 @@ class NPuzzle:
             x.printState()
             print('')
 
+    def solve(self, goalState, method='A*', heuristic='ManHattan'):
+        # a node is represented by its state
+        start = self.state
+
+        frontier = PriorityQueue()
+        frontier.put(start, 0)
+        cameFrom = dict()
+        costSoFar = dict()
+        cameFrom[start] = None
+        costSoFar[start] = 0
+
+        while not frontier.empty():
+            current = frontier.get()
+
+            if current.state is goalState:
+                break
+
+            for next in NPuzzle(current).getNeighborStates():
+                newCost = costSoFar[current] + 1
+                if (next not in costSoFar) or (newCost < costSoFar[next]):
+                    costSoFar[next] = newCost
+                    priority = newCost + self.heuristicCost(next, goalState)
+                    frontier.put(next, priority)
+                    cameFrom[next] = current
+        
+        if goalState not in cameFrom:
+            raise Exception('Initial state cannot be transformed into goalState')
+        
+        chains = []
+        node = goalState
+        while node is not None:
+            chains.append(NPuzzle(node))
+            node = cameFrom[node]
+        chains.reverse()
+        self.path = {'goalState':goalState,'chains':chains,'steps':len(chains)}
+
+
+    @staticmethod
+    def getManHattanDistance(state1, state2):
+        pass
+
+    @staticmethod
+    def heuristicCost(state1, state2):
+        pass
 
 
 if __name__ == '__main__':
     testmod()
-    # a = NPuzzle('462301578')
-    # a.printNeighbors()
+    a = NPuzzle('462301578')
+    dic = {a:a}
