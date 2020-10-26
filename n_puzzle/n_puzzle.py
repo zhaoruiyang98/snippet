@@ -18,28 +18,6 @@ from queue import PriorityQueue, Queue
 
 class NPuzzle:
     """
-    >>> a = NPuzzle('321')
-    Traceback (most recent call last):
-        ...
-    ValueError: The length of input state should be a perfect square
-
-    >>> a = NPuzzle(123)
-    Traceback (most recent call last):
-        ...
-    TypeError: The type of state should be str
-
-    >>> a = NPuzzle('4321')
-    Traceback (most recent call last):
-        ...
-    ValueError: Illegal state: each element should be in the range of 0 to 3
-
-    >>> a = NPuzzle('1230')
-
-    >>> a = NPuzzle('1102')
-    Traceback (most recent call last):
-        ...
-    ValueError: Illegal state: each element should appear only once
-
     >>> a = NPuzzle('1230'); print(a.getNeighborStates())
     ['1032', '1203']
 
@@ -54,26 +32,27 @@ class NPuzzle:
 
     """
 
-    def __init__(self, state, isCheck=True):
-        self._checkIndex(state, isCheck)
+    def __init__(self, state, rank=None, wordWidth=None):
+        if rank is not None:
+            self.rank = rank
+        else:
+            charList = state.split()
+            total = len(charList)
+            rank = int(np.sqrt(total))
+            self.rank = rank
 
-    def _checkIndex(self, state, isCheck):
-        rank = int(np.sqrt(len(state)))
-        if isCheck:
-            if type(state) is not str:
-                raise TypeError("The type of state should be str")
-            if len(state) != rank**2:
-                raise ValueError(
-                    "The length of input state should be a perfect square")
-            for i in range(len(state)):
-                if str(i) not in state:
-                    raise ValueError(
-                        "Illegal state: each element should be in the range of 0 to %d" % (len(state)-1))
-                if state.count(str(i)) != 1:
-                    raise ValueError(
-                        "Illegal state: each element should appear only once")
-        self.rank = rank
-        self.state = state
+        if wordWidth is not None:
+            self.wordWidth = wordWidth
+            self.state = state
+        else:
+            charList = state.split()
+            wordWidth = -1
+            for x in charList:
+                if len(x) > wordWidth:
+                    wordWidth = len(x)
+            charList = [x.center(wordWidth) for x in charList]
+            self.wordWidth = wordWidth
+            self.state = ' '.join(charList)
 
     def getRank(self):
         return self.rank
@@ -82,61 +61,81 @@ class NPuzzle:
         return self.state
 
     def getArray(self):
-        result = np.array(list(map(int, list(self.state))))
-        result = result.reshape((self.rank, self.rank))
-        return result
+        return np.fromstring(self.state, dtype='int64', sep=' ')
 
     def printState(self):
+        """
+        >>> a = NPuzzle('1 2 3 4 5 6 7 8 -'); a.printState()
+        *************
+        *   *   *   *
+        * 1 * 2 * 3 * 
+        *   *   *   *
+        *************
+        *   *   *   *
+        * 4 * 5 * 6 * 
+        *   *   *   *
+        *************
+        *   *   *   *
+        * 7 * 8 * - * 
+        *   *   *   *
+        *************
+
+        """
         rank = self.rank
-        linewidth = 4*rank + 1
-        print('*'*linewidth)
+        state = self.state
+        wordWidth = self.wordWidth
+        charList = state.split()
+        charList = [x.center(wordWidth) for x in charList]
+        lineWidth = rank * wordWidth + 3 * rank + 1
+        print('*'*lineWidth)
         for i in range(rank):
-            print('*   '*rank+'*')
+            print(('* '+' '*wordWidth+' ')*rank+'*')
             print('* ', end='')
             for j in range(rank):
-                print('%d * ' % (int(self.state[i*rank+j])), end='')
+                print('%s * ' % (charList[i*rank+j]), end='')
             print('')
-            print('*   '*rank+'*')
-            print('*'*linewidth)
+            print(('* '+' '*wordWidth+' ')*rank+'*')
+            print('*'*lineWidth)
 
-    def arrayToState(self, array):
-        rank = self.rank
-        state = array.reshape((rank**2))
-        state = list(state)
-        state = list(map(str, state))
-        return ''.join(state)
-
-    def getNeighborStates(self, state=None, rank=None):
+    def getNeighborStates(self, state=None, rank=None, wordWidth=None):
         if state is None:
             state = self.state
         if rank is None:
             rank = self.rank
+        if wordWidth is None:
+            wordWidth = self.wordWidth
 
-        zeroIndex = state.index('0')
+        state = ' '+state
+        minusIndex = state.index('-')
+        shift = '-'.center(wordWidth).index('-')
+        minusIndex = minusIndex - shift - 1
         neighborStates = []
-        upIndex = zeroIndex - rank
-        downIndex = zeroIndex + rank
-        leftIndex = zeroIndex - 1
-        rightIndex = zeroIndex + 1
+        blockWidth = wordWidth + 1
+        lineWidth = blockWidth * rank
+        upIndex = minusIndex - lineWidth
+        downIndex = minusIndex + lineWidth
+        leftIndex = minusIndex - blockWidth
+        rightIndex = minusIndex + blockWidth
         if upIndex >= 0:
-            neighborStates.append(state[:upIndex] + state[zeroIndex] +
-                                  state[upIndex+1:zeroIndex] + state[upIndex] + state[zeroIndex+1:])
-        if downIndex < rank * rank:
-            neighborStates.append(state[:zeroIndex] + state[downIndex] +
-                                  state[zeroIndex+1:downIndex] + state[zeroIndex] + state[downIndex+1:])
-        if zeroIndex % rank != 0:
-            neighborStates.append(state[:leftIndex] + state[zeroIndex] +
-                                  state[leftIndex+1:zeroIndex] + state[leftIndex] + state[zeroIndex+1:])
-        if rightIndex % rank != 0:
-            neighborStates.append(state[:zeroIndex] + state[rightIndex] +
-                                  state[zeroIndex+1:rightIndex] + state[zeroIndex] + state[rightIndex+1:])
+            neighborStates.append((state[:upIndex] + state[minusIndex:minusIndex+blockWidth] +
+                                   state[upIndex+blockWidth:minusIndex] + state[upIndex:upIndex+blockWidth] + state[minusIndex+blockWidth:])[1:])
+        if downIndex < lineWidth * rank:
+            neighborStates.append((state[:minusIndex] + state[downIndex:downIndex+blockWidth] +
+                                   state[minusIndex+blockWidth:downIndex] + state[minusIndex:minusIndex+blockWidth] + state[downIndex+blockWidth:])[1:])
+        if minusIndex % lineWidth != 0:
+            neighborStates.append((state[:leftIndex] + state[minusIndex:minusIndex+blockWidth] +
+                                   state[leftIndex+blockWidth:minusIndex] + state[leftIndex:leftIndex+blockWidth] + state[minusIndex+blockWidth:])[1:])
+        if rightIndex % lineWidth != 0:
+            neighborStates.append((state[:minusIndex] + state[rightIndex:rightIndex+blockWidth] +
+                                   state[minusIndex+blockWidth:rightIndex] + state[minusIndex:minusIndex+blockWidth] + state[rightIndex+blockWidth:])[1:])
+            # neighborStates[-1] = neighborStates[-1][1:]
 
         return neighborStates
 
     def getNeighbors(self):
         result = []
         for x in self.getNeighborStates():
-            result.append(NPuzzle(x, isCheck=False))
+            result.append(NPuzzle(x, rank=self.rank, wordWidth=self.wordWidth))
         return result
 
     def printNeighbors(self):
@@ -144,6 +143,20 @@ class NPuzzle:
         for x in l:
             x.printState()
             print('')
+
+    def printChains(self):
+        chains = self.path['chains']
+        for x in chains:
+            x.printState()
+            print('')
+
+    @staticmethod
+    def serialize(state):
+        return np.array_str(state)
+
+    @staticmethod
+    def unserialize(sState):
+        return np.fromstring(sState[1:-1], dtype='int64', sep=' ')
 
     def solve(self, goalState, method='A*', heuristic='ManHattan'):
         # a node is represented by its state
@@ -162,7 +175,7 @@ class NPuzzle:
             if current is goalState:
                 break
 
-            for next in self.getNeighborStates(state=current, rank=self.rank):
+            for next in self.getNeighborStates(state=current, rank=self.rank, wordWidth=self.wordWidth):
                 newCost = costSoFar[current] + 1
                 if (next not in costSoFar) or (newCost < costSoFar[next]):
                     costSoFar[next] = newCost
@@ -177,7 +190,8 @@ class NPuzzle:
         chains = []
         node = goalState
         while node is not None:
-            chains.append(NPuzzle(node, isCheck=False))
+            chains.append(NPuzzle(node, rank=self.rank,
+                                  wordWidth=self.wordWidth))
             node = cameFrom[node]
         chains.reverse()
         self.path = {'goalState': goalState,
@@ -194,7 +208,3 @@ class NPuzzle:
 
 if __name__ == '__main__':
     testmod()
-    a = NPuzzle('236148750')
-    a.solve('123456780')
-    for x in a.path['chains']:
-        x.printState()
