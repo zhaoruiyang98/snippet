@@ -179,7 +179,7 @@ class NPuzzle:
                 newCost = costSoFar[current] + 1
                 if (next not in costSoFar) or (newCost < costSoFar[next]):
                     costSoFar[next] = newCost
-                    priority = newCost + self.heuristicCost(next, goalState)
+                    priority = newCost + self.heuristicCost(next, goalState, method=heuristic)
                     frontier.put(next, priority)
                     cameFrom[next] = current
 
@@ -198,12 +198,43 @@ class NPuzzle:
                      'chains': chains, 'steps': len(chains)}
 
     @staticmethod
-    def getManHattanDistance(state1, state2):
-        pass
+    def getManHattanDistance(state1, state2, rank):
+        list1 = state1.split()
+        list2 = state2.split()
+        result = 0
+        for (i,x),y in zip(enumerate(list1), list2):
+            if (x is '-') or (y is '-') or (x is y):
+                continue
+            else:
+                for j,z in enumerate(list2):
+                    if z is '-':
+                        continue
+                    if x is z:
+                        x_dis = abs(j-i)%rank
+                        y_dis = abs(j//rank -i//rank)
+                        result += x_dis + y_dis
+                        break
+        return result
+
+        
 
     @staticmethod
-    def heuristicCost(state1, state2):
-        return 0
+    def getHammingDistance(state1, state2):
+        list1 = state1.split()
+        list2 = state2.split()
+        result = 0
+        for x,y in zip(list1, list2):
+            if (x is not '-') and (y is not '-') and (x is not y):
+                result += 1
+        return result
+
+    def heuristicCost(self, state1, state2, method):
+        if method is 'Hamming':
+            return self.getHammingDistance(state1, state2)
+        elif method is "ManHattan":
+            return self.getManHattanDistance(state1, state2, self.rank)
+        else:
+            return 0
 
 
 if __name__ == '__main__':
