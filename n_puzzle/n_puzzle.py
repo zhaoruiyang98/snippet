@@ -1,241 +1,130 @@
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.lines import Line2D
-from doctest import testmod
-from queue import PriorityQueue, Queue
-
-# class Cell:
-#     def __init__(self, index, n):
-#         bottom, left = 0.1, 0.1
-#         width, height = 0.8, 0.8
-#         top, right = bottom + height, left + width
-#         vstep = (top-bottom)/n
-#         hstep = (right-left)/n
-#         xIndex = index % n
-#         yIndex = index - index % n
-#         self.bottomleft = np.array([])
+from math import sqrt
+from queue import PriorityQueue
+from dataclasses import dataclass, field
+from typing import Any
 
 
-class NPuzzle:
-    """
-    >>> a = NPuzzle('1230'); print(a.getNeighborStates())
-    ['1032', '1203']
+def is_equal(state1, state2):
+    return state1 == state2
 
-    >>> a = NPuzzle('123456780'); print(a.getNeighborStates())
-    ['123450786', '123456708']
+def get_neighbors(state):
+    rank = int(sqrt(len(state)))
+    index = state.index(0)
+    neighbors = []
 
-    >>> a = NPuzzle('123045678'); print(a.getNeighborStates())
-    ['023145678', '123645078', '123405678']
+    up_index = index - rank
+    down_index = index + rank
+    left_index = index - 1
+    right_index = index + 1
 
-    >>> a = NPuzzle('123405678'); print(a.getNeighborStates())
-    ['103425678', '123475608', '123045678', '123450678']
+    if up_index >= 0:
+        temp = state.copy()
+        temp[index], temp[up_index] = temp[up_index], temp[index]
+        neighbors.append(temp)
+    if down_index < rank * rank:
+        temp = state.copy()
+        temp[index], temp[down_index] = temp[down_index], temp[index]
+        neighbors.append(temp)
+    if index % rank != 0:
+        temp = state.copy()
+        temp[index], temp[left_index] = temp[left_index], temp[index]
+        neighbors.append(temp)
+    if right_index % rank != 0:
+        temp = state.copy()
+        temp[index], temp[right_index] = temp[right_index], temp[index]
+        neighbors.append(temp)
+    
+    return neighbors
 
-    """
-
-    def __init__(self, state, rank=None, wordWidth=None):
-        if rank is not None:
-            self.rank = rank
-        else:
-            charList = state.split()
-            total = len(charList)
-            rank = int(np.sqrt(total))
-            self.rank = rank
-
-        if wordWidth is not None:
-            self.wordWidth = wordWidth
-            self.state = state
-        else:
-            charList = state.split()
-            wordWidth = -1
-            for x in charList:
-                if len(x) > wordWidth:
-                    wordWidth = len(x)
-            charList = [x.center(wordWidth) for x in charList]
-            self.wordWidth = wordWidth
-            self.state = ' '.join(charList)
-
-    def getRank(self):
-        return self.rank
-
-    def getState(self):
-        return self.state
-
-    def getArray(self):
-        return np.fromstring(self.state, dtype='int64', sep=' ')
-
-    def printState(self):
-        """
-        >>> a = NPuzzle('1 2 3 4 5 6 7 8 -'); a.printState()
-        *************
-        *   *   *   *
-        * 1 * 2 * 3 * 
-        *   *   *   *
-        *************
-        *   *   *   *
-        * 4 * 5 * 6 * 
-        *   *   *   *
-        *************
-        *   *   *   *
-        * 7 * 8 * - * 
-        *   *   *   *
-        *************
-
-        """
-        rank = self.rank
-        state = self.state
-        wordWidth = self.wordWidth
-        charList = state.split()
-        charList = [x.center(wordWidth) for x in charList]
-        lineWidth = rank * wordWidth + 3 * rank + 1
-        print('*'*lineWidth)
-        for i in range(rank):
-            print(('* '+' '*wordWidth+' ')*rank+'*')
-            print('* ', end='')
-            for j in range(rank):
-                print('%s * ' % (charList[i*rank+j]), end='')
-            print('')
-            print(('* '+' '*wordWidth+' ')*rank+'*')
-            print('*'*lineWidth)
-
-    def getNeighborStates(self, state=None, rank=None, wordWidth=None):
-        if state is None:
-            state = self.state
-        if rank is None:
-            rank = self.rank
-        if wordWidth is None:
-            wordWidth = self.wordWidth
-
-        state = ' '+state
-        minusIndex = state.index('-')
-        shift = '-'.center(wordWidth).index('-')
-        minusIndex = minusIndex - shift - 1
-        neighborStates = []
-        blockWidth = wordWidth + 1
-        lineWidth = blockWidth * rank
-        upIndex = minusIndex - lineWidth
-        downIndex = minusIndex + lineWidth
-        leftIndex = minusIndex - blockWidth
-        rightIndex = minusIndex + blockWidth
-        if upIndex >= 0:
-            neighborStates.append((state[:upIndex] + state[minusIndex:minusIndex+blockWidth] +
-                                   state[upIndex+blockWidth:minusIndex] + state[upIndex:upIndex+blockWidth] + state[minusIndex+blockWidth:])[1:])
-        if downIndex < lineWidth * rank:
-            neighborStates.append((state[:minusIndex] + state[downIndex:downIndex+blockWidth] +
-                                   state[minusIndex+blockWidth:downIndex] + state[minusIndex:minusIndex+blockWidth] + state[downIndex+blockWidth:])[1:])
-        if minusIndex % lineWidth != 0:
-            neighborStates.append((state[:leftIndex] + state[minusIndex:minusIndex+blockWidth] +
-                                   state[leftIndex+blockWidth:minusIndex] + state[leftIndex:leftIndex+blockWidth] + state[minusIndex+blockWidth:])[1:])
-        if rightIndex % lineWidth != 0:
-            neighborStates.append((state[:minusIndex] + state[rightIndex:rightIndex+blockWidth] +
-                                   state[minusIndex+blockWidth:rightIndex] + state[minusIndex:minusIndex+blockWidth] + state[rightIndex+blockWidth:])[1:])
-            # neighborStates[-1] = neighborStates[-1][1:]
-
-        return neighborStates
-
-    def getNeighbors(self):
-        result = []
-        for x in self.getNeighborStates():
-            result.append(NPuzzle(x, rank=self.rank, wordWidth=self.wordWidth))
-        return result
-
-    def printNeighbors(self):
-        l = self.getNeighbors()
-        for x in l:
-            x.printState()
-            print('')
-
-    def printChains(self):
-        chains = self.path['chains']
-        for x in chains:
-            x.printState()
-            print('')
-
-    @staticmethod
-    def serialize(state):
-        return np.array_str(state)
-
-    @staticmethod
-    def unserialize(sState):
-        return np.fromstring(sState[1:-1], dtype='int64', sep=' ')
-
-    def solve(self, goalState, method='A*', heuristic='ManHattan'):
-        # a node is represented by its state
-        start = self.state
-
-        frontier = PriorityQueue()
-        frontier.put(start, 0)
-        cameFrom = dict()
-        costSoFar = dict()
-        cameFrom[start] = None
-        costSoFar[start] = 0
-
-        while not frontier.empty():
-            current = frontier.get()
-
-            if current is goalState:
+def get_manhattan_distance(state, goal, rank):
+    result = 0
+    for (i, x), _ in zip(enumerate(state), goal):
+        if (x == _) or (x == 0):
+            continue
+        for j, y in enumerate(goal):
+            if x == y:
+                x_dis = abs(j-i)%rank
+                y_dis = abs(j//rank -i//rank)
+                result += x_dis + y_dis
                 break
+    return int(result)
 
-            for next in self.getNeighborStates(state=current, rank=self.rank, wordWidth=self.wordWidth):
-                newCost = costSoFar[current] + 1
-                if (next not in costSoFar) or (newCost < costSoFar[next]):
-                    costSoFar[next] = newCost
-                    priority = newCost + self.heuristicCost(next, goalState, method=heuristic)
-                    frontier.put(next, priority)
-                    cameFrom[next] = current
+def get_conflict_manhattan_distance(state, goal, rank):
+    raise NotImplementedError()
 
-        if goalState not in cameFrom:
-            raise Exception(
-                'Initial state cannot be transformed into goalState')
+def get_hamming_distance(state, goal):
+    return sum(u!=v for u, v in zip(state, goal) if u!=0)
 
-        chains = []
-        node = goalState
-        while node is not None:
-            chains.append(NPuzzle(node, rank=self.rank,
-                                  wordWidth=self.wordWidth))
-            node = cameFrom[node]
-        chains.reverse()
-        self.path = {'goalState': goalState,
-                     'chains': chains, 'steps': len(chains)}
+def heuristic_cost(state, goal, rank, method):
+    if method == "LinearConflict":
+        return get_conflict_manhattan_distance(state, goal, rank)
+    elif method == 'ManHattan':
+        return get_manhattan_distance(state, goal, rank)
+    elif method == 'Hamming':
+        return get_hamming_distance(state, goal)
+    elif method == "BFS":
+        return 0
+    else:
+        raise ValueError("expected 'LinearConflict' or 'ManHattan' or 'Hamming' or 'BFS'")
 
-    @staticmethod
-    def getManHattanDistance(state1, state2, rank):
-        list1 = state1.split()
-        list2 = state2.split()
-        result = 0
-        for (i,x),y in zip(enumerate(list1), list2):
-            if (x is '-') or (y is '-') or (x is y):
-                continue
-            else:
-                for j,z in enumerate(list2):
-                    if z is '-':
-                        continue
-                    if x is z:
-                        x_dis = abs(j-i)%rank
-                        y_dis = abs(j//rank -i//rank)
-                        result += x_dis + y_dis
-                        break
-        return result
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any=field(compare=False)
 
-        
+def solve(start:list, goal:list, heuristic='ManHattan'):
+    frontier = PriorityQueue()
+    frontier.put(PrioritizedItem(0, start))
+    came_from = dict()
+    came_from[tuple(start)] = None
+    cost_so_far = dict()
+    cost_so_far[tuple(start)] = 0
 
-    @staticmethod
-    def getHammingDistance(state1, state2):
-        list1 = state1.split()
-        list2 = state2.split()
-        result = 0
-        for x,y in zip(list1, list2):
-            if (x is not '-') and (y is not '-') and (x is not y):
-                result += 1
-        return result
+    rank = int(sqrt(len(goal)))
 
-    def heuristicCost(self, state1, state2, method):
-        if method is 'Hamming':
-            return self.getHammingDistance(state1, state2)
-        elif method is "ManHattan":
-            return self.getManHattanDistance(state1, state2, self.rank)
-        else:
-            return 0
+    while not frontier.empty():
+        current = frontier.get().item
 
+        if is_equal(current, goal):
+            break
+            
+        for next in get_neighbors(current):
+            new_cost = cost_so_far[tuple(current)] + 1
+            if (tuple(next) not in cost_so_far) or (new_cost < cost_so_far[tuple(next)]):
+                cost_so_far[tuple(next)] = new_cost
+                priority = new_cost + heuristic_cost(next, goal, rank, method=heuristic)
+                frontier.put(PrioritizedItem(priority, next))
+                came_from[tuple(next)] = tuple(current)
+    
+    if tuple(goal) not in came_from:
+        raise ValueError('Initial state cannot be transformed into goal state.')
+    
+    chains = []
+    node = tuple(goal)
+    while node is not None:
+        chains.append(node)
+        node = came_from[node]
+    chains.reverse()
+    return chains
 
-if __name__ == '__main__':
-    testmod()
+def print_state(state):
+    rank = int(sqrt(len(state)))
+    word_width = len(str(rank * rank - 1))
+    line_width = (word_width + 3) * rank + 1
+
+    print('*' * line_width)
+    _ = '* ' + ' '*word_width + ' '
+    for i in range(rank):
+        print(_ * rank + '*')
+        for j in range(rank):
+            print('* ' + str(state[i * rank + j]).center(word_width) + ' ', end='')
+        print('*')
+        print(_ * rank + '*')
+        print('*' * line_width)
+
+def print_chains(chains):
+    print('chains:')
+    print_state(chains[0])
+    for state in chains[1:]:
+        print('==>')
+        print_state(state)  
